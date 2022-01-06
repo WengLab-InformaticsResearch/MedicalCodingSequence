@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 from random import shuffle
 import json
+import pandas as pd
 
 class MedicalCodingSequencer(ABC):
     """ Abstract Base Class for medical coding sequencers """
@@ -171,3 +172,49 @@ class TemporalSequencer(MedicalCodingSequencer):
             ts.add_temporal_record(tr)
         ts._sequenced = True
         return ts
+
+    @staticmethod
+    def read_excel(file_in: str, col_pid, col_time, col_codes, file_out, sheet_name: Optional[str] = None) \
+            -> Dict[Any, 'TemporalSequencer']:
+        """ Reads in an excel file and generates a dictionary of TemporalSequences. Expects an file with a format like:
+        patient_id  timestamp               code
+        42          2000-01-01 00:00:00     313217, 320218
+        42          2000-01-01 00:01:00     314159
+
+        Params
+        ------
+        file_in: str - excel file to read
+        sheet_name: str or None - name of excel sheet to read
+        col_pid: str - column name with patient identifier
+        col_time: str - column name with timestamp
+        col_codes: str - column name with codes or other data to be sequenced
+
+        Returns
+        -------
+        Dictionary with patient IDs as keys and TemporalSequencer objects as values
+        """
+        if sheet_name is not None:
+            df = pd.read_excel(file_in, sheet_name=sheet_name)
+        else:
+            df = pd.read_excel(file_in)
+
+        pids = df[col_pid].unique().tolist()
+        pt_seqs = dict()
+        for pid in pids:
+            pt_records = df[df[col_pid] == pid]
+            ts = TemporalSequencer(metadata={'pat_id': pid})
+            for index, row in pt_records.iterrows():
+                icd_codes_str = row[col_codes]
+                # icd_codes column can contain multiple ICD codes separated by comma
+                icd_codes = [x.strip() for x in icd_codes_str.split(',')]
+                for icd_code in icd_codes:
+                    ts.add_data(row[col_time], icd_code)
+
+            ts.sequence()
+            pt_seqs[pid] = ts
+
+        with open(file_out, 'w') as f:
+            serialized = [x.serialize() for x in pt_seqs.values()]
+            f.writelines('\n'.join(serialized))
+
+        return pt_seqs
