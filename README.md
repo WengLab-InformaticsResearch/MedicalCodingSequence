@@ -14,7 +14,7 @@ serialized at the beginning.
 ### Examples
 Code:
 ``` Python
-from mcs import *
+from MedicalCodingSequence import *
 from datetime import datetime
 ts = TemporalSequencer(metadata={'person_id': 42})
 ts.add_data(timestamp=datetime(1955, 11, 12, 22, 4, 0, 0), code=4198400)
