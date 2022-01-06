@@ -3,7 +3,7 @@
 
 import pyodbc
 import getpass
-from mcs import *
+from MedicalCodingSequence import *
 
 # SQL server config
 sql_config = {
